@@ -1,8 +1,52 @@
 // Rendements historiques réels (1928-2024, source: Aswath Damodaran NYU)
 export const HISTORICAL_RETURNS = {
+  // Pour compatibilité avec les composants (format simplifié)
+  sp500: { 
+    name: "S&P 500",
+    mean: 0.10, 
+    stdDev: 0.16,
+    avgReturn: 0.10, 
+    volatility: 0.16, 
+    minReturn: -0.38, 
+    maxReturn: 0.47,
+    description: "Actions américaines large cap"
+  },
+  realEstate: { 
+    name: "Immobilier France",
+    mean: 0.045, 
+    stdDev: 0.05,
+    avgReturn: 0.045, 
+    volatility: 0.05,
+    description: "Prix immobilier résidentiel"
+  },
+  bitcoin: { 
+    name: "Bitcoin",
+    mean: 0.85, 
+    stdDev: 0.80,
+    avgReturn: 0.85, 
+    volatility: 0.80,
+    description: "BTC/USD"
+  },
+  bonds: { 
+    name: "Obligations d'État",
+    mean: 0.04, 
+    stdDev: 0.03,
+    avgReturn: 0.04, 
+    volatility: 0.03,
+    description: "OAT, Bunds, Treasuries"
+  },
+  gold: { 
+    name: "Or",
+    mean: 0.06, 
+    stdDev: 0.15,
+    avgReturn: 0.06, 
+    volatility: 0.15,
+    description: "XAU/USD"
+  },
+  // Détails complets par catégorie
   stocks: {
     sp500: { 
-      name: "S\u0026P 500",
+      name: "S&P 500",
       avgReturn: 0.10, 
       volatility: 0.16, 
       minReturn: -0.38, 
@@ -34,7 +78,7 @@ export const HISTORICAL_RETURNS = {
       description: "Actions émergentes"
     },
   },
-  realEstate: {
+  realEstateDetails: {
     france: { 
       name: "Immobilier France",
       avgReturn: 0.045, 
@@ -54,7 +98,7 @@ export const HISTORICAL_RETURNS = {
       description: "Bureaux, retail, industriel"
     },
   },
-  crypto: {
+  cryptoDetails: {
     bitcoin: { 
       name: "Bitcoin",
       avgReturn: 0.85, 
@@ -74,7 +118,7 @@ export const HISTORICAL_RETURNS = {
       description: "Top 50 cryptos excluant BTC/ETH"
     },
   },
-  bonds: {
+  bondsDetails: {
     government: { 
       name: "Obligations d'État",
       avgReturn: 0.04, 

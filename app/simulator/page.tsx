@@ -1,385 +1,453 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { 
-  TrendingUp, 
-  Home, 
-  PieChart, 
-  Settings, 
-  Bell, 
-  Search,
-  Moon,
-  Plus,
-  ArrowUpRight,
-  ArrowDownRight,
-  Wallet,
-  Target,
-  Clock,
-  Activity
-} from "lucide-react";
-import { SimulationParams } from "@/lib/engine";
-import { useSimulation } from "@/hooks/useSimulation";
-import { HISTORICAL_RETURNS } from "@/lib/market-data/historical-returns";
-import { monteCarloSimulation } from "@/lib/market-data/monte-carlo";
+import { useState, useEffect } from "react";
+import { TrendingUp, Moon, Sun, ArrowRight, ArrowLeft, Home, PieChart, Calculator, BarChart3 } from "lucide-react";
 
-// Counter animation hook
-function useCountUp(end: number, duration: number = 1800) {
-  const [count, setCount] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
-
-  useEffect(() => {
-    let startTime: number;
-    let animationFrame: number;
-
-    const animate = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / duration, 1);
-      
-      // easeOutExpo
-      const easeProgress = 1 - Math.pow(2, -10 * progress);
-      setCount(Math.floor(end * easeProgress));
-
-      if (progress < 1) {
-        animationFrame = requestAnimationFrame(animate);
-      } else {
-        setIsComplete(true);
-      }
-    };
-
-    animationFrame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [end, duration]);
-
-  return { count, isComplete };
+// Types
+interface Asset {
+  id: string;
+  type: 'realEstate' | 'stocks' | 'crypto' | 'gold' | 'bonds' | 'cash';
+  amount: number;
+  return: number;
 }
 
-// Ripple effect component
-function RippleButton({ children, onClick, className = "" }: { children: React.ReactNode; onClick?: () => void; className?: string }) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
+interface SimulationData {
+  totalWealth: number;
+  monthlyIncome: number;
+  targetWealth: number;
+  horizon: number;
+  reinvestmentRate: number;
+  assets: Asset[];
+}
 
-  const handleClick = (e: React.MouseEvent) => {
-    const button = buttonRef.current;
-    if (!button) return;
+// Icons mapping
+const assetIcons: Record<string, string> = {
+  realEstate: "🏠",
+  stocks: "📈",
+  crypto: "₿",
+  gold: "🪙",
+  bonds: "📋",
+  cash: "💶",
+};
 
-    const rect = button.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+const assetNames: Record<string, string> = {
+  realEstate: "Immobilier",
+  stocks: "Actions/ETF",
+  crypto: "Crypto",
+  gold: "Or",
+  bonds: "Obligations",
+  cash: "Cash",
+};
 
-    const ripple = document.createElement("span");
-    ripple.className = "nm-ripple";
-    ripple.style.left = `${x}px`;
-    ripple.style.top = `${y}px`;
-    button.appendChild(ripple);
+const assetDefaults: Record<string, number> = {
+  realEstate: 4.5,
+  stocks: 10,
+  crypto: 85,
+  gold: 6,
+  bonds: 4,
+  cash: 2.5,
+};
 
-    setTimeout(() => ripple.remove(), 700);
-    onClick?.();
+export default function SimulatorPage() {
+  const [step, setStep] = useState(1);
+  const [darkMode, setDarkMode] = useState(true);
+  
+  // Data state
+  const [data, setData] = useState<SimulationData>({
+    totalWealth: 500000,
+    monthlyIncome: 5000,
+    targetWealth: 1000000,
+    horizon: 20,
+    reinvestmentRate: 30,
+    assets: [],
+  });
+
+  const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
+  const [tempAmount, setTempAmount] = useState("");
+  const [tempReturn, setTempReturn] = useState("");
+
+  // Calculate weighted return
+  const totalAssets = data.assets.reduce((sum, a) => sum + a.amount, 0);
+  const weightedReturn = totalAssets > 0 
+    ? data.assets.reduce((sum, a) => sum + (a.amount / totalAssets) * a.return, 0)
+    : 0;
+
+  // Add asset
+  const addAsset = (type: string) => {
+    if (!tempAmount || parseFloat(tempAmount) <= 0) return;
+    
+    const newAsset: Asset = {
+      id: Date.now().toString(),
+      type: type as any,
+      amount: parseFloat(tempAmount),
+      return: parseFloat(tempReturn) || assetDefaults[type],
+    };
+    
+    setData(prev => ({
+      ...prev,
+      assets: [...prev.assets, newAsset],
+      totalWealth: prev.totalWealth + newAsset.amount,
+    }));
+    
+    setSelectedAsset(null);
+    setTempAmount("");
+    setTempReturn("");
+  };
+
+  // Remove asset
+  const removeAsset = (id: string) => {
+    const asset = data.assets.find(a => a.id === id);
+    if (!asset) return;
+    
+    setData(prev => ({
+      ...prev,
+      assets: prev.assets.filter(a => a.id !== id),
+      totalWealth: prev.totalWealth - asset.amount,
+    }));
+  };
+
+  // Format currency
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  // Navigation
+  const canProceed = () => {
+    switch (step) {
+      case 1: return data.totalWealth > 0;
+      case 2: return data.assets.length > 0;
+      case 3: return data.targetWealth > 0 && data.monthlyIncome > 0;
+      default: return true;
+    }
   };
 
   return (
-    <button ref={buttonRef} onClick={handleClick} className={`nm-button ${className}`}>
-      {children}
-    </button>
-  );
-}
-
-// Stat Card with counter
-function StatCard({ 
-  icon: Icon, 
-  label, 
-  value, 
-  prefix = "", 
-  suffix = "", 
-  trend,
-  delay = 0 
-}: { 
-  icon: React.ElementType; 
-  label: string; 
-  value: number; 
-  prefix?: string;
-  suffix?: string;
-  trend?: { value: number; positive: boolean };
-  delay?: number;
-}) {
-  const { count, isComplete } = useCountUp(value);
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  return (
-    <div 
-      className={`nm-flat-hover p-6 transition-all duration-500 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className="nm-inset w-12 h-12 rounded-xl flex items-center justify-center">
-          <Icon className="w-6 h-6 text-nm-accent animate-float" />
-        </div>
-        {trend && (
-          <div className={`flex items-center gap-1 text-sm ${trend.positive ? 'text-emerald-500' : 'text-rose-500'}`}>
-            {trend.positive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-            <span>{trend.value}%</span>
-          </div>
-        )}
-      </div>
-      
-      <div className={`text-3xl font-bold font-general transition-transform ${isComplete ? 'animate-count-pulse' : ''}`}>
-        {prefix}{count.toLocaleString()}{suffix}
-      </div>
-      
-      <div className="text-sm text-nm-text-muted mt-1">{label}</div>
-    </div>
-  );
-}
-
-// Animated progress bar
-function ProgressBar({ value, max, gradient = "from-indigo-500 via-purple-500 to-pink-500" }: { value: number; max: number; gradient?: string }) {
-  const percentage = Math.min((value / max) * 100, 100);
-  
-  return (
-    <div className="nm-inset h-3 rounded-full overflow-hidden relative">
-      <div 
-        className={`h-full rounded-full bg-gradient-to-r ${gradient} shimmer relative animate-glow`}
-        style={{ width: `${percentage}%`, transition: 'width 1s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
-      />
-    </div>
-  );
-}
-
-// Terminal component
-function Terminal() {
-  const [lines, setLines] = useState<string[]>([]);
-  
-  useEffect(() => {
-    const commands = [
-      "> Initialisation moteur de simulation...",
-      "> Chargement données historiques...",
-      "> S&P 500: μ=10.2%, σ=16%",
-      "> Immobilier FR: μ=4.5%, σ=5%",
-      "> Bitcoin: μ=85%, σ=80%",
-      "> Simulation Monte Carlo: 1000 itérations",
-      "> Calcul des percentiles...",
-      "> Prêt.",
-    ];
-    
-    commands.forEach((cmd, i) => {
-      setTimeout(() => {
-        setLines(prev => [...prev, cmd]);
-      }, i * 300);
-    });
-  }, []);
-
-  return (
-    <div className="nm-inset rounded-2xl p-4 font-mono text-xs">
-      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-nm-shadow">
-        <div className="w-3 h-3 rounded-full bg-rose-500" />
-        <div className="w-3 h-3 rounded-full bg-amber-500" />
-        <div className="w-3 h-3 rounded-full bg-emerald-500" />
-        <span className="ml-2 text-nm-text-muted">system.log</span>
-      </div>
-      
-      <div className="space-y-1 h-32 overflow-hidden">
-        {lines.map((line, i) => (
-          <div 
-            key={i} 
-            className="text-nm-text animate-in slide-in-from-left-2 fade-in duration-300"
-            style={{ animationDelay: `${i * 50}ms` }}
-          >
-            {line}
-          </div>
-        ))}
-        <div className="flex items-center text-emerald-500 mt-2">
-          <span>&gt; _</span>
-          <span className="w-2 h-4 bg-emerald-500 ml-0.5 animate-cursor" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Main Simulator Page
-export default function SimulatorPage() {
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [darkMode, setDarkMode] = useState(true);
-  
-  const [params, setParams] = useState<SimulationParams>({
-    initialPatrimony: 100000,
-    patrimonyType: "mixed",
-    appreciationRate: 0.03,
-    monthlyIncome: 5000,
-    incomeGrowthRate: 0.02,
-    reinvestmentRate: 0.3,
-    investmentReturnRate: 0.07,
-    targetWealth: 1000000,
-    maxYears: 30,
-  });
-
-  const result = useSimulation(params);
-  const monteCarlo = monteCarloSimulation(params, 0.07, 0.16, 100);
-
-  return (
-    <div className={`min-h-screen ${darkMode ? 'dark' : ''}`}>
-      <div className="min-h-screen bg-nm-bg text-nm-text transition-colors duration-300">
-        {/* Sidebar */}
-        <aside className="fixed left-0 top-0 h-full w-[72px] z-50 flex flex-col items-center py-6 gap-3">
+    <div className={`min-h-screen ${darkMode ? 'bg-[#020617]' : 'bg-gray-50'} transition-colors duration-300`}>
+      {/* Navigation flottante - style landing */}
+      <header className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
+        <nav className="flex items-center gap-1 px-2 py-2 rounded-full bg-white/5 backdrop-blur-xl border border-white/10">
           {/* Logo */}
-          <div className="nm-flat w-12 h-12 rounded-xl flex items-center justify-center mb-6">
-            <TrendingUp className="w-6 h-6 text-nm-accent" />
-          </div>
+          <Link href="/" className="flex items-center gap-2 px-4">
+            <div className="w-2 h-2 rounded-full bg-indigo-500" />
+            <span className="font-cabinet font-bold text-sm tracking-wider text-white">WEALTH</span>
+          </Link>
 
-          {/* Nav Links */}
-          <nav className="flex flex-col gap-3">
+          {/* Steps */}
+          <div className="hidden md:flex items-center gap-1">
             {[
-              { id: "dashboard", icon: Home },
-              { id: "portfolio", icon: PieChart },
-              { id: "settings", icon: Settings },
-            ].map(({ id, icon: Icon }) => (
+              { num: 1, label: "Patrimoine", icon: Home },
+              { num: 2, label: "Allocation", icon: PieChart },
+              { num: 3, label: "Projection", icon: Calculator },
+              { num: 4, label: "Résultats", icon: BarChart3 },
+            ].map(({ num, label, icon: Icon }) => (
               <button
-                key={id}
-                onClick={() => setActiveTab(id)}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                  activeTab === id 
-                    ? 'nm-inset text-nm-accent' 
-                    : 'nm-button text-nm-text-muted hover:text-nm-text'
+                key={num}
+                onClick={() => setStep(num)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-all ${
+                  step === num 
+                    ? 'bg-white/10 text-white' 
+                    : step > num 
+                      ? 'text-emerald-400' 
+                      : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <Icon className={`w-5 h-5 ${activeTab === id ? '' : 'group-hover:translate-x-1'}`} />
+                {step > num ? (
+                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs">✓</span>
+                ) : (
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
+                    step === num ? 'bg-indigo-500' : 'bg-white/10'
+                  }`}>{num}</span>
+                )}
+                <span className="hidden lg:inline">{label}</span>
               </button>
             ))}
-          </nav>
-        </aside>
+          </div>
 
-        {/* Main Content */}
-        <main className="ml-[72px] min-h-screen">
-          {/* Header */}
-          <header className="sticky top-4 z-40 mx-4">
-            <div className="nm-flat rounded-[28px] h-[72px] px-6 flex items-center justify-between">
-              {/* Breadcrumbs */}
-              <div className="flex items-center gap-2 text-sm text-nm-text-muted">
-                <span>Simulateur</span>
-                <span>/</span>
-                <span className="text-nm-text">Tableau de bord</span>
-              </div>
+          {/* Theme toggle */}
+          <button 
+            onClick={() => setDarkMode(!darkMode)}
+            className="ml-2 w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+          >
+            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+        </nav>
+      </header>
 
-              {/* Search */}
-              <div className="hidden md:flex nm-inset rounded-full px-4 py-2 w-72 items-center gap-2">
-                <Search className="w-4 h-4 text-nm-text-muted" />
-                <input 
-                  type="text" 
-                  placeholder="Rechercher..."
-                  className="bg-transparent text-sm outline-none w-full"
-                />
-              </div>
-
-              {/* Right Side */}
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => setDarkMode(!darkMode)}
-                  className="nm-button w-10 h-10 rounded-full flex items-center justify-center"
-                >
-                  <Moon className="w-4 h-4" />
-                </button>
-
-                <button className="nm-button w-10 h-10 rounded-full flex items-center justify-center relative">
-                  <Bell className="w-4 h-4" />
-                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 animate-notify" />
-                </button>
-
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600" />
-              </div>
-            </div>
-          </header>
-
-          {/* Dashboard Content */}
-          <div className="p-6 space-y-6">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatCard 
-                icon={Wallet} 
-                label="Patrimoine Final" 
-                value={Math.floor(result.finalWealth)} 
-                prefix="€"
-                trend={{ value: 12.5, positive: true }}
-                delay={0}
-              />
-              
-              <StatCard 
-                icon={Target} 
-                label="Années pour Objectif" 
-                value={result.targetReachedYear || 0} 
-                suffix=" ans"
-                trend={{ value: -2, positive: true }}
-                delay={100}
-              />
-              
-              <StatCard 
-                icon={Activity} 
-                label="Taux de Succès" 
-                value={Math.floor(monteCarlo.successRate)} 
-                suffix="%"
-                trend={{ value: 5.3, positive: true }}
-                delay={200}
-              />
-              
-              <StatCard 
-                icon={Clock} 
-                label="Horizon" 
-                value={params.maxYears} 
-                suffix=" ans"
-                delay={300}
-              />
+      {/* Main Content */}
+      <main className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+        
+        {/* STEP 1: PATRIMOINE */}
+        {step === 1 && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="text-center">
+              <h1 className="font-cabinet font-extrabold text-4xl sm:text-5xl text-metallic mb-4">
+                Où en êtes-vous ?
+              </h1>
+              <p className="text-slate-400 text-lg">
+                Commencez par renseigner votre patrimoine actuel
+              </p>
             </div>
 
-            {/* Quick Actions */}
-            <div className="flex gap-4 overflow-x-auto pb-2">
-              {[
-                { icon: Plus, label: "Nouveau scénario" },
-                { icon: PieChart, label: "Répartition" },
-                { icon: Activity, label: "Analyser" },
-              ].map(({ icon: Icon, label }) => (
-                <RippleButton key={label} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap group">
-                  <Icon className="w-4 h-4 icon-spin" />
-                  <span className="text-sm font-medium">{label}</span>
-                </RippleButton>
+            {/* Total Wealth Input */}
+            <div className="glass rounded-3xl p-8 text-center">
+              <label className="text-slate-400 text-sm uppercase tracking-widest mb-4 block">
+                Votre patrimoine total
+              </label>
+              <input
+                type="text"
+                value={formatCurrency(data.totalWealth).replace("€", "").trim()}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value.replace(/\s/g, "").replace(/[^\d]/g, "")) || 0;
+                  setData(prev => ({ ...prev, totalWealth: val }));
+                }}
+                className="bg-transparent text-5xl sm:text-6xl font-cabinet font-bold text-center text-white outline-none w-full"
+              />
+              <span className="text-2xl text-slate-500">€</span>
+            </div>
+
+            {/* Add Assets Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {Object.entries(assetNames).map(([type, name]) => (
+                <div key={type} className="relative">
+                  {selectedAsset === type ? (
+                    <div className="glass rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-white">
+                        <span className="text-2xl">{assetIcons[type]}</span>
+                        <span className="font-medium">{name}</span>
+                      </div>
+                      <input
+                        type="number"
+                        placeholder="Montant"
+                        value={tempAmount}
+                        onChange={(e) => setTempAmount(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500"
+                        autoFocus
+                      />
+                      <input
+                        type="number"
+                        placeholder={`Rendement % (défaut: ${assetDefaults[type]}%)`}
+                        value={tempReturn}
+                        onChange={(e) => setTempReturn(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => addAsset(type)}
+                          className="flex-1 py-2 bg-indigo-500 rounded-xl text-white font-medium hover:bg-indigo-600 transition-colors"
+                        >
+                          Ajouter
+                        </button>
+                        <button
+                          onClick={() => { setSelectedAsset(null); setTempAmount(""); setTempReturn(""); }}
+                          className="px-4 py-2 bg-white/5 rounded-xl text-slate-400 hover:text-white transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setSelectedAsset(type)}
+                      className="w-full glass rounded-2xl p-4 text-left hover:bg-white/10 transition-all group"
+                    >
+                      <span className="text-3xl block mb-2">{assetIcons[type]}</span>
+                      <span className="text-white font-medium group-hover:text-indigo-400 transition-colors">{name}</span>
+                      <span className="text-slate-500 text-sm block">+{assetDefaults[type]}%</span>
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
 
-            {/* Two Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Progress Section */}
-              <div className="space-y-4">
-                <h3 className="font-general font-semibold text-lg">Allocation Actuelle</h3>
-                
-                <div className="space-y-4">
-                  {[
-                    { label: "Actions", value: 40, color: "from-indigo-500 to-blue-500" },
-                    { label: "Immobilier", value: 30, color: "from-emerald-500 to-teal-500" },
-                    { label: "Crypto", value: 15, color: "from-purple-500 to-pink-500" },
-                    { label: "Obligations", value: 10, color: "from-amber-500 to-orange-500" },
-                    { label: "Or", value: 5, color: "from-yellow-500 to-amber-500" },
-                  ].map((item) => (
-                    <div key={item.label}>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span>{item.label}</span>
-                        <span className="font-medium">{item.value}%</span>
+            {/* Added Assets List */}
+            {data.assets.length > 0 && (
+              <div className="glass rounded-2xl p-6">
+                <h3 className="text-white font-medium mb-4">Actifs ajoutés</h3>
+                <div className="space-y-2">
+                  {data.assets.map((asset) => (
+                    <div key={asset.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{assetIcons[asset.type]}</span>
+                        <span className="text-white">{assetNames[asset.type]}</span>
+                        <span className="text-slate-400 text-sm">{asset.return}%</span>
                       </div>
-                      <ProgressBar value={item.value} max={100} gradient={item.color} />
+                      <div className="flex items-center gap-4">
+                        <span className="text-white font-medium">{formatCurrency(asset.amount)}</span>
+                        <button
+                          onClick={() => removeAsset(asset.id)}
+                          className="text-rose-400 hover:text-rose-300 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
+            )}
 
-              {/* Terminal */}
-              <div className="space-y-4">
-                <h3 className="font-general font-semibold text-lg">System Status</h3>
-                <Terminal />
+            {/* Summary */}
+            <div className="glass rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <div className="text-slate-400 text-sm">Patrimoine total</div>
+                <div className="text-2xl font-cabinet font-bold text-white">{formatCurrency(data.totalWealth)}</div>
+              </div>
+              {data.assets.length > 0 && (
+                <div>
+                  <div className="text-slate-400 text-sm">Rendement moyen</div>
+                  <div className="text-2xl font-cabinet font-bold text-emerald-400">{weightedReturn.toFixed(1)}%</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: ALLOCATION - Simplified placeholder */}
+        {step === 2 && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="text-center">
+              <h1 className="font-cabinet font-extrabold text-4xl sm:text-5xl text-metallic mb-4">
+                Allocation
+              </h1>
+              <p className="text-slate-400 text-lg">
+                Ajustez la répartition de votre portefeuille
+              </p>
+            </div>
+            
+            <div className="glass rounded-3xl p-8 text-center">
+              <p className="text-slate-400 mb-4">Distribution actuelle basée sur vos actifs</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {data.assets.map((asset) => (
+                  <div key={asset.id} className="glass rounded-xl p-4">
+                    <div className="text-2xl mb-2">{assetIcons[asset.type]}</div>
+                    <div className="text-white font-medium">{assetNames[asset.type]}</div>
+                    <div className="text-slate-400 text-sm">{formatCurrency(asset.amount)}</div>
+                    <div className="text-indigo-400 text-sm">{((asset.amount / data.totalWealth) * 100).toFixed(1)}%</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-        </main>
-      </div>
+        )}
+
+        {/* STEP 3: PROJECTION - Simplified */}
+        {step === 3 && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="text-center">
+              <h1 className="font-cabinet font-extrabold text-4xl sm:text-5xl text-metallic mb-4">
+                Votre objectif
+              </h1>
+            </div>
+
+            <div className="glass rounded-3xl p-8 space-y-6">
+              <div>
+                <label className="text-slate-400 text-sm uppercase tracking-widest mb-4 block">
+                  Objectif patrimonial
+                </label>
+                <input
+                  type="text"
+                  value={formatCurrency(data.targetWealth).replace("€", "").trim()}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value.replace(/\s/g, "").replace(/[^\d]/g, "")) || 0;
+                    setData(prev => ({ ...prev, targetWealth: val }));
+                  }}
+                  className="bg-transparent text-4xl font-cabinet font-bold text-center text-white outline-none w-full"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-slate-400 text-sm">Revenus mensuels</label>
+                  <input
+                    type="number"
+                    value={data.monthlyIncome}
+                    onChange={(e) => setData(prev => ({ ...prev, monthlyIncome: parseFloat(e.target.value) || 0 }))}
+                    className="w-full mt-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-400 text-sm">Horizon (années)</label>
+                  <input
+                    type="number"
+                    value={data.horizon}
+                    onChange={(e) => setData(prev => ({ ...prev, horizon: parseInt(e.target.value) || 20 }))}
+                    className="w-full mt-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: RESULTS - Simplified */}
+        {step === 4 && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="text-center">
+              <h1 className="font-cabinet font-extrabold text-4xl sm:text-5xl text-metallic mb-4">
+                Vos résultats
+              </h1>
+            </div>
+
+            <div className="glass rounded-3xl p-8 text-center">
+              <div className="text-slate-400 mb-2">Patrimoine projeté dans {data.horizon} ans</div>
+              <div className="text-5xl sm:text-6xl font-cabinet font-bold text-white mb-4">
+                {formatCurrency(data.totalWealth * Math.pow(1 + weightedReturn / 100, data.horizon))}
+              </div>
+              <div className="text-emerald-400">
+                Objectif: {formatCurrency(data.targetWealth)}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="glass rounded-2xl p-6 text-center">
+                <div className="text-slate-400 text-sm">Rendement moyen</div>
+                <div className="text-2xl font-cabinet font-bold text-white">{weightedReturn.toFixed(1)}%</div>
+              </div>
+              <div className="glass rounded-2xl p-6 text-center">
+                <div className="text-slate-400 text-sm">Actifs déclarés</div>
+                <div className="text-2xl font-cabinet font-bold text-white">{data.assets.length}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation Buttons */}
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4">
+          {step > 1 && (
+            <button
+              onClick={() => setStep(step - 1)}
+              className="flex items-center gap-2 px-6 py-3 glass rounded-full text-white hover:bg-white/10 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Précédent
+            </button>
+          )}
+          
+          {step < 4 ? (
+            <button
+              onClick={() => setStep(step + 1)}
+              disabled={!canProceed()}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-[#020617] rounded-full font-semibold hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Continuer
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <Link
+              href="/"
+              className="flex items-center gap-2 px-6 py-3 bg-indigo-500 text-white rounded-full font-semibold hover:bg-indigo-600 transition-colors"
+            >
+              Retour à l'accueil
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
