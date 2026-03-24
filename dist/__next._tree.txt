@@ -1,5 +1,5 @@
-:HL["/_next/static/chunks/0o1tt1e5xzkaz.css","style"]
+:HL["/_next/static/chunks/0wtpr6ux0ens9.css","style"]
 :HL["https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,600,500,400&display=swap","style"]
 :HL["https://api.fontshare.com/v2/css?f[]=satoshi@500,400,300,700&display=swap","style"]
 :HL["https://api.fontshare.com/v2/css?f[]=general-sans@600,500,400&display=swap","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}},"staleTime":300,"buildId":"TWTVLgUp0800YnDBZ8td7"}
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}},"staleTime":300,"buildId":"sy1jQyZqJBJLSG3KIxII1"}

@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className="dark">
+    <html lang="fr">
       <head>
         <link
           rel="stylesheet"
@@ -32,7 +32,7 @@ export default function RootLayout({
           href="https://api.fontshare.com/v2/css?f[]=general-sans@600,500,400&display=swap"
         />
       </head>
-      <body className="font-satoshi antialiased min-h-screen overflow-x-hidden">
+      <body className="font-satoshi antialiased min-h-screen overflow-x-hidden bg-nm-bg text-nm-text">
         {children}
       </body>
     </html>
