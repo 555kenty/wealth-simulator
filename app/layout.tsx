@@ -1,25 +1,12 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-playfair",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Wealth Simulator - Projection Patrimoniale",
   description: "Simulez l'évolution de votre patrimoine avec des données de marché réelles et des projections Monte Carlo.",
   openGraph: {
     title: "Wealth Simulator",
-    description: "Projection patrimoniale avancée avec multi-actifs",
+    description: "Projection patrimoniale avancée",
     type: "website",
   },
 };
@@ -30,10 +17,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${inter.variable} ${playfair.variable}`}>
-      <body className="font-inter antialiased min-h-screen bg-nm-bg dark transition-colors duration-300">
-        {/* Noise overlay */}
-        <div className="noise-overlay" />
+    <html lang="fr" className="dark">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,600,500,400&display=swap"
+        />
+        <link
+          rel="stylesheet"
+          href="https://api.fontshare.com/v2/css?f[]=satoshi@500,400,300,700&display=swap"
+        />
+        <link
+          rel="stylesheet"
+          href="https://api.fontshare.com/v2/css?f[]=general-sans@600,500,400&display=swap"
+        />
+      </head>
+      <body className="font-satoshi antialiased min-h-screen overflow-x-hidden">
         {children}
       </body>
     </html>

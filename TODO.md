@@ -1,35 +1,35 @@
-# TODO - Wealth Simulator v2.0
+# TODO - Wealth Simulator v3.0 - Design Cinematic + Neumorphic
 
-## Phase 1: Design System Neumorphic
-- [ ] Config Tailwind avec couleurs neumorphic
-- [ ] CSS variables light/dark mode
-- [ ] Utilitaires nm-flat, nm-inset, nm-button
-- [ ] Animations (ripple, float, shimmer, count-up)
-- [ ] Fonts Satoshi + General Sans
+## Phase 1: Design System Cinematic (Landing)
+- [ ] Colors: #020617 background, metallic gradients
+- [ ] Fonts: Cabinet Grotesk + Satoshi
+- [ ] Portal pulse animation
+- [ ] 3D parallax cards
+- [ ] Glassmorphic nav
+- [ ] Metallic text effect
 
-## Phase 2: App Redesign
-- [ ] Redesign simulateur avec cards neumorphic
-- [ ] Compteurs animés (count-up)
-- [ ] Progress bars avec shimmer
-- [ ] Boutons ripple
-- [ ] Sidebar + Header sticky
+## Phase 2: Landing Page Cinematic
+- [ ] Floating navigation pill
+- [ ] Hero with portal effect
+- [ ] 3D dashboard mockup
+- [ ] Logo marquee
+- [ ] Bento grid features
+- [ ] FAQ accordion
+- [ ] Footer
 
-## Phase 3: Landing Page Industrial
-- [ ] Grid 12 colonnes avec lignes verticales
-- [ ] Palette warm industrial (#EBEBE8)
-- [ ] Fonts Inter + Playfair Display
-- [ ] Stroke text effects
-- [ ] Marquee ticker
-- [ ] Noise texture overlay
-- [ ] Animations clip-path
+## Phase 3: Dashboard Neumorphic (App)
+- [ ] nm-flat / nm-inset utilities
+- [ ] Sidebar 72px
+- [ ] Sticky header
+- [ ] Stat cards with counters
+- [ ] Progress bars shimmer
+- [ ] Quick actions
+- [ ] Terminal component
 
-## Phase 4: Multi-Actifs & Monte Carlo
-- [ ] Données historiques statiques
-- [ ] Allocation multi-classes (actions, immo, crypto, or, obligations)
-- [ ] Simulation Monte Carlo (1000 scénarios)
-- [ ] Volatilité par classe d'actif
+## Phase 4: Multi-assets & Monte Carlo
+- [ ] Already done - keep it
 
-## Phase 5: Polish & Deploy
-- [ ] Tests
-- [ ] Build
+## Phase 5: Build & Deploy
+- [ ] Test build
+- [ ] Push GitHub
 - [ ] Deploy Vercel
